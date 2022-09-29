@@ -1,0 +1,11 @@
+- name: "Install nginx from galaxy"
+  ansible.builtin.import_role:
+    name: geerlingguy.nginx
+  vars:
+    nginx_conf_template: "files/nginx.conf.j2"
+
+- name: "Reload nginx"
+  ansible.builtin.service:
+    name: "nginx"
+    state: "reloaded"
+

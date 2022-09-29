@@ -1,0 +1,27 @@
+#################
+# Ruby PLAYBOOK #
+#################
+---
+- hosts: "all" # применяем команды ко всем хостам из inventory
+  become: true # становимся привилегированным пользователем
+#  tasks:
+#    - name: "ping host"
+#      ansible.builtin.ping:
+  vars:
+  - db_name: 'xpaste_test'
+  - db_password: 'password'
+  - db_user: 'user'
+
+  pre_tasks:
+    - name: "Install software"
+      ansible.builtin.yum:
+        name:
+        - python3-pip
+        - python3-devel
+        - postgresql-devel
+        state: latest
+
+  roles:
+    - postgresql
+    - ruby
+    - nginx

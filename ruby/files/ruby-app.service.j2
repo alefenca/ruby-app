@@ -1,0 +1,24 @@
+[Unit]
+Description=MyApp
+Requires=network.target
+After=postgresql.service
+
+[Service]
+ProtectHome=false
+Environment = "SECRET_KEY_BASE=34534535"
+Environment = "RAILS_ENV=production"
+Environment = "RAILS_LOG_TO_STDOUT=1"
+Environment = "DB_HOST = 127.0.0.1"
+Environment = "DB_PORT=5432"
+Environment = "DB_NAME=xpaste_test"
+Environment = "DB_USER=user"
+Environment = "DB_PASSWORD=password"
+WorkingDirectory = /home/vagrant/app
+ExecStartPre= /usr/bin/bash -c 'exec /home/vagrant/.rbenv/shims/bundle exec rake db:migrate'
+ExecStart = /usr/bin/bash -c 'exec /home/vagrant/.rbenv/shims/bundle exec puma -b unix:///var/run/puma.sock -e $RAILS_ENV config.ru'
+TimeoutSec=30
+RestartSec=15s
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

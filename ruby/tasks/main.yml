@@ -1,0 +1,99 @@
+#__ruby_packages:
+#  - ruby
+#  - ruby-devel
+#  - "{{ ruby_rubygems_package_name }}"
+#  - '@development tools'
+#__ruby_build_packages:
+#  - '@development tools'
+#  - zlib-devel
+#  - openssl-static
+
+- name: Install ruby, rubygems, and development tools.
+  ansible.builtin.yum:
+    name:
+      - bzip2
+      - curl
+      - gcc
+      - git
+      - libffi-devel
+      - libyaml-devel
+      - libxml2-devel
+      - libxslt-devel
+      - nodejs
+      - openssl-devel
+      - postgresql-devel
+      - readline-devel
+      - zlib-devel
+    state: present
+
+
+- name: "Copy repos rbenv"
+  ansible.builtin.git:
+    repo: https://github.com/rbenv/rbenv.git
+    dest: ~/.rbenv
+  become: false
+
+- name: "Copy repos"
+  ansible.builtin.git:
+    repo: https://github.com/rbenv/ruby-build.git
+    dest: ~/.rbenv/plugins/ruby-build
+  become: false
+
+- name: Global profile script to enable specified ruby version
+  ansible.builtin.template:
+    src: "files/enable_ruby.sh"
+    dest: /etc/profile.d/
+
+
+- name: "rbenv install 2.3.8"
+  ansible.builtin.command:
+    cmd: rbenv install 2.3.8 --skip-existing
+  become: false
+
+- name: "rbenv global 2.3.8"
+  ansible.builtin.command:
+    cmd: rbenv global 2.3.8
+  become: false
+
+- name: "builder install"
+  ansible.builtin.command:
+    cmd: gem install bundler
+  become: false
+
+- name: "Copy app files"
+  ansible.builtin.copy:
+    src: "files/app"
+    dest: "/home/vagrant/"
+    owner: "vagrant"
+    group: "vagrant"
+    mode: "0644"
+
+- name: "bundle config"
+  ansible.builtin.command:
+    cmd: bundle config build.nokogiri --use-system-libraries
+  become: false
+
+- name: "bundle install"
+  ansible.builtin.command:
+    cmd: bundle install --clean --no-cache --quiet --without development
+    chdir: /home/vagrant/app
+  become: false
+  register: command_result
+  failed_when: "'FAILED' in command_result.stderr"
+
+- name: "Create service"
+  ansible.builtin.template:
+    src: files/ruby-app.service.j2
+    dest: /usr/lib/systemd/system/ruby-app.service
+    owner: vagrant
+    group: vagrant
+    mode: 0644
+
+- name: Just force systemd to reread configs (2.4 and above)
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Just force systemd to reread configs (2.4 and above)
+  ansible.builtin.systemd:
+    name: ruby-app
+    state: reloaded

@@ -1,0 +1,86 @@
+- name: "Install repo for ruby 2.5"
+  ansible.builtin.yum:
+    name:
+      - centos-release-scl
+    update_cache: yes
+    state: latest
+
+- name: "Install system dependencies"
+  ansible.builtin.yum:
+    name:
+      - rh-ruby25
+      - gcc
+      - gcc-c++
+      - kernel-devel
+      - make
+      - libxml2-devel
+    update_cache: yes
+    #    enablerepo: centos-release-scl
+    state: latest
+
+- name: Global profile script to enable specified ruby version
+  ansible.builtin.template:
+    src: "files/enable_ruby25.sh"
+    dest: /etc/profile.d/
+
+- name: "Changed variables and paths for ruby"
+  ansible.builtin.lineinfile:
+    path: "/home/vagrant/.bash_profile"
+    insertafter: EOF
+    line: "source scl_source enable rh-ruby25"
+
+- name: Install bundler
+  command: bash -lc "gem install bundler"
+  become: false
+
+- name: "Copy our landing to /var/www/html folder"
+  ansible.builtin.copy: # этот модуль копирует файлы/директории с контрольной ноды на хосты
+    src: "files/app" # путь к файлу/директории для копирования на контрольной ноде
+    dest: "/home/vagrant/" # путь для вставки на удаленной машине, вставка папок ВСЕГДА будет осуществляться внутрь папки, ансибл никогда не будет подменять папки или переименовывать их
+    owner: "vagrant" # пользователь владелец файла/директории на удаленной машине
+    group: "vagrant" # группа владелец файла/директории на удаленной машине
+    mode: "0644" # права доступа к файлу/директории
+
+
+- name: "Create service"
+  ansible.builtin.template:
+    src: files/ruby_app.service.j2
+    dest: /usr/lib/systemd/system/ruby_app.service
+    owner: vagrant
+    group: vagrant
+    mode: 0644
+
+- name: Install dependency nokogiri
+  command: bash -lc "bundle config build.nokogiri --use-system-libraries"
+  become: false
+
+- name: Install
+  ansible.builtin.command:
+    cmd: /bin/bash -lc "/home/vagrant/.rbenv/shims/bundle install --clean --no-cache --without development"
+    chdir: /home/vagrant/app
+
+
+
+- name: Just force systemd to reread configs (2.4 and above)
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Just force systemd to reread configs (2.4 and above)
+  ansible.builtin.systemd:
+    name: ruby_app
+    state: reloaded
+
+
+
+#- name: "Reload ruby_app"
+#  ansible.builtin.service:
+#    name: "ruby_app"
+#    state: "reloaded"
+#
+#- name: "Create service"
+#  ansible.builtin.template:
+#    src: files/default.centos.conf.j2
+#    dest: /etc/nginx/conf.d/default.conf
+#    owner: vagrant
+#    group: vagrant
+#    mode: 0644
